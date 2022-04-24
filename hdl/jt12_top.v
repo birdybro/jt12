@@ -24,7 +24,8 @@ http://gendev.spritesmind.net/forum/viewtopic.php?t=386&postdays=0&postorder=asc
 
     */
 
-module jt12_top (
+module jt12_top #(parameter ACC_WIDTH)
+(
     input           rst,        // rst should be at least 6 clk&cen cycles long
     input           clk,        // CPU clock
     (* direct_enable *) input cen,        // optional clock enable, if not needed leave as 1'b1
@@ -632,10 +633,13 @@ generate
         assign pcm2 = pcm;
         `endif
 
-        jt12_acc u_acc(
+        jt12_acc #(.ACC_WIDTH(ACC_WIDTH)) u_acc
+        (
             .rst        ( rst       ),
             .clk        ( clk       ),
             .clk_en     ( clk_en    ),
+            .channel_en (cur_ch == i),
+            .ladder     ( ladder    ),
             .op_result  ( op_result ),
             .rl         ( rl        ),
             // note that the order changes to deal
@@ -700,7 +704,7 @@ generate
         `endif
 
         for (i = 0; i < 7; i = i + 1) begin : accumulator_block
-        jt12_acc u_acc(
+        jt12_acc #(ACC_WIDTH(ACC_WIDTH)) u_acc(
             .rst        ( rst       ),
             .clk        ( clk       ),
             .clk_en     ( clk_en    ),

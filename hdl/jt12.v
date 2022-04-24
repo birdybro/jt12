@@ -22,7 +22,8 @@
 
 // Wrapper to output only combined channels. Defaults to YM2612 mode.
 
-module jt12 (
+module jt12 #(parameter ACC_WIDTH=12)
+(
     input           rst,        // rst should be at least 6 clk&cen cycles long
     input           clk,        // CPU clock
     input           cen,        // optional clock enable, if not needed leave as 1'b1
@@ -43,7 +44,7 @@ module jt12 (
 );
 
 // Default parameters for JT12 select a YM2612
-jt12_top u_jt12(
+jt12_top #(.ACC_WIDTH(ACC_WIDTH)) u_jt12(
     .rst    ( rst   ),        // rst should be at least 6 clk&cen cycles long
     .clk    ( clk   ),        // CPU clock
     .cen    ( cen   ),        // optional clock enable, it not needed leave as 1'b1

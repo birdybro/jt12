@@ -33,7 +33,7 @@
  JT12 always has a limiter enabled and the ladder effect disabled
  */
 
-module jt12_acc #(parameter WIDTH=12)
+module jt12_acc #(parameter ACC_WIDTH)
 (
     input               rst,
     input               clk,
@@ -52,12 +52,9 @@ module jt12_acc #(parameter WIDTH=12)
     input               pcm_en, // only enabled for channel 6
     input   signed [8:0] pcm,
     // combined output
-    output reg signed [WIDTH-1:0] left,
-    output reg signed [WIDTH-1:0] right
+    output reg signed [ACC_WIDTH-1:0] left,
+    output reg signed [ACC_WIDTH-1:0] right
 );
-
-// if( WIDTH==16 && ladder==1 ) begin : ladder_enabled
-// else if ( WIDTH==12 && ladder==0 ) begin : ladder_disabled
 
 reg sum_en;
 
@@ -81,11 +78,11 @@ always @(posedge clk) if(clk_en)
     wire signed [8:0] pcm_data = pcm_sum ? pcm : 9'd0;
     wire signed [8:0] acc_input = ~channel_en ? 9'd0 : (use_pcm ? pcm_data : op_result);
 
-    if ( WIDTH==12 && ladder==0 ) begin : ladder_disabled
+    if ( ACC_WIDTH==12 && ladder==0 ) begin : ladder_disabled
         wire left_en = rl[1];
         wire right_en= rl[0];
         // Continuous output
-        wire signed   [WIDTH-1:0]  pre_left, pre_right;
+        wire signed   [ACC_WIDTH-1:0]  pre_left, pre_right;
         jt12_single_acc #(.win(9),.wout(12)) u_left(
             .clk        ( clk            ),
             .clk_en     ( clk_en         ),
@@ -104,7 +101,7 @@ always @(posedge clk) if(clk_en)
             .snd        ( pre_right      )
         );
     end
-    else if( WIDTH==16 && ladder==1 ) begin : ladder_enabled
+    else if( ACC_WIDTH==16 && ladder==1 ) begin : ladder_enabled
         // Continuous output
         wire signed [8:0] acc_out;
         jt12_single_acc #(.win(9),.wout(9)) u_acc(
@@ -128,11 +125,11 @@ always @(posedge clk) if(clk_en)
 // Output can be amplied by 8/6=1.33 to use full range
 // an easy alternative is to add 1/4th and get 1.25 amplification
 always @(posedge clk) if(clk_en) begin
-    if ( WIDTH==12 && ladder==0 ) begin : ladder_disabled
-        left  <= pre_left  + { {2{pre_left [WIDTH-1]}}, pre_left [WIDTH-1:2] };
-        right <= pre_right + { {2{pre_right[WIDTH-1]}}, pre_right[WIDTH-1:2] };
+    if ( ACC_WIDTH==12 && ladder==0 ) begin : ladder_disabled
+        left  <= pre_left  + { {2{pre_left [ACC_WIDTH-1]}}, pre_left [ACC_WIDTH-1:2] };
+        right <= pre_right + { {2{pre_right[ACC_WIDTH-1]}}, pre_right[ACC_WIDTH-1:2] };
     end
-    else if( WIDTH==16 && ladder==1 ) begin : ladder_enabled
+    else if( ACC_WIDTH==16 && ladder==1 ) begin : ladder_enabled
         if (channel_en)
             rl_latch <= rl;
         if (zero)
