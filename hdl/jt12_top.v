@@ -657,7 +657,7 @@ generate
             .left       ( fm_snd_left [15:4]  ),
             .right      ( fm_snd_right[15:4]  )
         );
-    end else if ( en_ladder==1 && use_pcm==1 ) begin: ladder_effect // YM2612 Ladder Effect
+    end else if ( ACC_WIDTH==16 ) begin: ladder_effect // YM2612 Ladder Effect
         assign fm_snd_left  = accum_l[0] + accum_l[1] + accum_l[2] + accum_l[4] + accum_l[5] + accum_l[6];
         assign fm_snd_right = accum_r[0] + accum_r[1] + accum_r[2] + accum_r[4] + accum_r[5] + accum_r[6];
         assign snd_sample        = zero;
@@ -704,7 +704,7 @@ generate
         `endif
 
         for (i = 0; i < 7; i = i + 1) begin : accumulator_block
-        jt12_acc #(ACC_WIDTH(ACC_WIDTH)) u_acc(
+        jt12_acc #(.ACC_WIDTH(ACC_WIDTH)) u_acc(
             .rst        ( rst       ),
             .clk        ( clk       ),
             .clk_en     ( clk_en    ),
