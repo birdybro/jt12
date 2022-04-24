@@ -37,6 +37,7 @@ module jt12_top (
     output          irq_n,
     // Configuration
     input           en_hifi_pcm,  // high to enable PCM interpolation on YM2612 mode
+    input           ladder,       // ladder effect for ym2612 only
     // ADPCM pins
     output  [19:0]  adpcma_addr,  // real hardware has 10 pins multiplexed through RMPX pin
     output  [ 3:0]  adpcma_bank,
@@ -580,6 +581,10 @@ assign op_result_hd = 'd0;
 
 /* verilator tracing_on */
 
+genvar i;
+wire signed [15:0] accum_r[7];
+wire signed [15:0] accum_l[7];
+
 generate
     if( use_pcm==1 ) begin: gen_pcm_acc // YM2612 accumulator
         assign fm_snd_right[3:0] = 4'd0;
@@ -648,6 +653,77 @@ generate
             .left       ( fm_snd_left [15:4]  ),
             .right      ( fm_snd_right[15:4]  )
         );
+    end else if ( en_ladder==1 && use_pcm==1 ) begin: ladder_effect // YM2612 Ladder Effect
+        assign fm_snd_left  = accum_l[0] + accum_l[1] + accum_l[2] + accum_l[4] + accum_l[5] + accum_l[6];
+        assign fm_snd_right = accum_r[0] + accum_r[1] + accum_r[2] + accum_r[4] + accum_r[5] + accum_r[6];
+        assign snd_sample        = zero;
+        reg signed [8:0] pcm2;
+
+        // interpolate PCM samples with automatic sample rate detection
+        // this feature is not present in original YM2612
+        // this improves PCM sample sound greatly
+        /*
+        jt12_pcm u_pcm(
+            .rst        ( rst       ),
+            .clk        ( clk       ),
+            .clk_en     ( clk_en    ),
+            .zero       ( zero      ),
+            .pcm        ( pcm       ),
+            .pcm_wr     ( pcm_wr    ),
+            .pcm_resampled ( pcm2   )
+        );
+        */
+        wire rst_pcm_n;
+
+        jt12_rst u_rst_pcm(
+            .rst    ( rst       ),
+            .clk    ( clk       ),
+            .rst_n  ( rst_pcm_n )
+        );
+
+        `ifndef NOPCMLINEAR
+        wire signed [10:0] pcm_full;
+        always @(*)
+            pcm2 = en_hifi_pcm ? pcm_full[9:1] : pcm;
+
+        jt12_pcm_interpol #(.dw(11), .stepw(5)) u_pcm (
+            .rst_n ( rst_pcm_n      ),
+            .clk   ( clk            ),
+            .cen   ( clk_en         ),
+            .cen55 ( clk_en_55      ),
+            .pcm_wr( pcm_wr         ),
+            .pcmin ( {pcm[8],pcm, 1'b0}    ),
+            .pcmout( pcm_full       )
+        );
+        `else
+        assign pcm2 = pcm;
+        `endif
+
+        for (i = 0; i < 7; i = i + 1) begin : accumulator_block
+        jt12_acc u_acc(
+            .rst        ( rst       ),
+            .clk        ( clk       ),
+            .clk_en     ( clk_en    ),
+            .channel_en (cur_ch == i),
+            .ladder     ( ladder    ),
+            .op_result  ( op_result ),
+            .rl         ( rl        ),
+            // note that the order changes to deal
+            // with the operator pipeline delay
+            .zero       ( zero      ),
+            .s1_enters  ( s2_enters ),
+            .s2_enters  ( s1_enters ),
+            .s3_enters  ( s4_enters ),
+            .s4_enters  ( s3_enters ),
+            .ch6op      ( ch6op     ),
+            .pcm_en     ( pcm_en    ),  // only enabled for channel 6
+            .pcm        ( pcm2      ),
+            .alg        ( alg_I     ),
+            // combined output
+            .left       ( accum_l[i]),
+            .right      ( accum_r[i])
+        );
+        end
     end
     if( use_pcm==0 && use_adpcm==0 ) begin : gen_2203_acc // YM2203 accumulator
         wire signed [15:0] mono_snd;
