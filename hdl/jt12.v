@@ -21,8 +21,10 @@
 */
 
 // Wrapper to output only combined channels. Defaults to YM2612 mode.
+// ACC_WIDTH=12 Default 12bits, use for everything except MiSTer Genesis core (16bits)
 
-module jt12 (
+module jt12 #(parameter ACC_WIDTH=12)
+(
     input           rst,        // rst should be at least 6 clk&cen cycles long
     input           clk,        // CPU clock
     input           cen,        // optional clock enable, if not needed leave as 1'b1
@@ -35,6 +37,7 @@ module jt12 (
     output          irq_n,
     // configuration
     input           en_hifi_pcm,
+    input           ladder,
     // combined output
     output  signed  [15:0]  snd_right,
     output  signed  [15:0]  snd_left,
@@ -42,7 +45,7 @@ module jt12 (
 );
 
 // Default parameters for JT12 select a YM2612
-jt12_top u_jt12(
+jt12_top #(.ACC_WIDTH(ACC_WIDTH)) u_jt12(
     .rst    ( rst   ),        // rst should be at least 6 clk&cen cycles long
     .clk    ( clk   ),        // CPU clock
     .cen    ( cen   ),        // optional clock enable, it not needed leave as 1'b1
@@ -55,6 +58,7 @@ jt12_top u_jt12(
     .irq_n  ( irq_n ),
     // configuration
     .en_hifi_pcm    ( en_hifi_pcm ),
+    .ladder         ( ladder      ),
     // Unused ADPCM pins
     .adpcma_addr    (      ), // real hardware has 10 pins multiplexed through RMPX pin
     .adpcma_bank    (      ),

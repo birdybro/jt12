@@ -24,7 +24,8 @@ http://gendev.spritesmind.net/forum/viewtopic.php?t=386&postdays=0&postorder=asc
 
     */
 
-module jt12_top (
+module jt12_top #(parameter ACC_WIDTH)
+(
     input           rst,        // rst should be at least 6 clk&cen cycles long
     input           clk,        // CPU clock
     (* direct_enable *) input cen,        // optional clock enable, if not needed leave as 1'b1
@@ -32,6 +33,7 @@ module jt12_top (
     input   [1:0]   addr,
     input           cs_n,
     input           wr_n,
+    input           ladder,
 
     output  [7:0]   dout,
     output          irq_n,
@@ -579,11 +581,17 @@ assign op_result_hd = 'd0;
 `endif
 
 /* verilator tracing_on */
+genvar i;
+wire signed [15:0] accum_r[7];
+wire signed [15:0] accum_l[7];
+
+assign fm_snd_left = accum_l[0] + accum_l[1] + accum_l[2] + accum_l[4] + accum_l[5] + accum_l[6];
+assign fm_snd_right = accum_r[0] + accum_r[1] + accum_r[2] + accum_r[4] + accum_r[5] + accum_r[6];
 
 generate
     if( use_pcm==1 ) begin: gen_pcm_acc // YM2612 accumulator
-        assign fm_snd_right[3:0] = 4'd0;
-        assign fm_snd_left [3:0] = 4'd0;
+        // assign fm_snd_right[3:0] = 4'd0;
+        // assign fm_snd_left [3:0] = 4'd0;
         assign snd_sample        = zero;
         reg signed [8:0] pcm2;
 
@@ -627,10 +635,13 @@ generate
         assign pcm2 = pcm;
         `endif
 
-        jt12_acc u_acc(
+        for (i = 0; i < 7; i = i + 1) begin : accumulator_block
+        jt12_acc #(.ACC_WIDTH(ACC_WIDTH)) u_acc(
             .rst        ( rst       ),
             .clk        ( clk       ),
             .clk_en     ( clk_en    ),
+            .channel_en (cur_ch == i),
+            .ladder     ( ladder    ),
             .op_result  ( op_result ),
             .rl         ( rl        ),
             // note that the order changes to deal
@@ -645,9 +656,10 @@ generate
             .pcm        ( pcm2      ),
             .alg        ( alg_I     ),
             // combined output
-            .left       ( fm_snd_left [15:4]  ),
-            .right      ( fm_snd_right[15:4]  )
+            .left       ( fm_snd_left [15:4] | accum_l[i] ),
+            .right      ( fm_snd_right[15:4] | accum_r[i] )
         );
+        end
     end
     if( use_pcm==0 && use_adpcm==0 ) begin : gen_2203_acc // YM2203 accumulator
         wire signed [15:0] mono_snd;
